@@ -10,14 +10,38 @@ column_indexes = get_column_indexes()
 row_indexes = get_row_indexes()
 
 
-def exclude(sudoku, row_indexes, column_indexes, box_indexes, cell, candida):
-    pass
+def exclude(sudoku, candidate: int, row_index: int, column_index: int):
+    for i_index, j_index in get_all_indexes(row_index, column_index):
+        sudoku[i_index][j_index].exclude(candidate)
 
 
-def get_all_indexes(row_index: int, column_index: int) -> Set[Set[int, int]]:
-    result = (row_indexes[row_index] + column_indexes[column_index]
+def append(sudoku, candidate: int, row_index: int, column_index: int):
+    for i_index, j_index in get_all_indexes(row_index, column_index):
+        sudoku[i_index][j_index].refresh_one(candidate)
+
+
+def get_all_indexes(row_index: int, column_index: int) -> Set[Tuple[int, int]]:
+    result = set()
+    all_indexes = (row_indexes[row_index] + column_indexes[column_index]
               + box_indexes[num_box[(row_index, column_index)]])
+    for element in all_indexes:
+        result.add(element)
+    result.remove((row_index, column_index))
     return result
+
+
+def get_prev_indexes(row_index: int, column_index: int):
+    if column_index > 0:
+        return row_index, column_index - 1
+    else:
+        return row_index - 1, 8
+
+
+def get_next_indexes(row_index: int, column_index: int):
+    if column_index < 8:
+        return row_index, column_index + 1
+    else:
+        return row_index + 1, 0
 
 
 def main(sudoku: List[List[int]]):
@@ -30,13 +54,14 @@ def main(sudoku: List[List[int]]):
     row_nums = {i: [] for i in range(9)}
 
     for row_index in range(9):
-        for column_index, element in enumerate(sudoku[row_index]):
-            if element != 0:
-                row_nums[row_index].append(element)
-                column_nums[column_index].append(element)
-                box_nums[num_box[(row_index, column_index)]].append(element)
+        for column_index, num in enumerate(sudoku[row_index]):
+            if num != 0:
+                row_nums[row_index].append(num)
+                column_nums[column_index].append(num)
+                box_nums[num_box[(row_index, column_index)]].append(num)
 
-                sudoku_cells[row_index][column_index].candidates = [element]
+                cell = sudoku_cells[row_index][column_index]
+                cell.use(num)
 
     for row_index in range(9):
         for column_index, cell in enumerate(sudoku_cells[row_index]):
@@ -51,14 +76,38 @@ def main(sudoku: List[List[int]]):
 
     while not is_correct:
         cell = sudoku_cells[row_index][column_index]
+        unused_candidates = cell.get_unused()
+
+        if column_index > 8 or row_index > 8:
+            return sudoku_cells
+
         if direction_forward:
-            if len(cell.candidates) > 1:
-                candidat = choice(cell.candidates.keys())
-                cell.candidates[candidat] = State.Used
-            elif len(cell.candidates) == 0:
-                pass
+            if len(unused_candidates) >= 1:
+
+                candidate = choice(cell.get_unused())
+                cell.use(candidate)
+                exclude(sudoku_cells, candidate, row_index, column_index)
+                row_index, column_index = get_next_indexes(row_index, column_index)
+
+            else:
+
+                row_index, column_index = get_prev_indexes(row_index, column_index)
+                direction_forward = False
         else:
-            pass
+            if len(unused_candidates) >= 1:
+                candidate = choice(cell.get_unused())
+                old_candidate = cell.change_used(candidate)
+
+                append(sudoku_cells, old_candidate, row_index, column_index)
+                exclude(sudoku_cells, candidate, row_index, column_index)
+
+                direction_forward = True
+                row_index, column_index = get_next_indexes(row_index, column_index)
+            else:
+                candidate = cell.current()
+                append(sudoku_cells, candidate, row_index, column_index)
+
+                cell.refresh_all([State.Expire, State.Used])
 
 
 if __name__ == '__main__':
@@ -71,4 +120,7 @@ if __name__ == '__main__':
               [0, 0, 6, 4, 0, 0, 0, 0, 0],
               [9, 5, 0, 0, 0, 0, 0, 0, 0],
               [0, 0, 0, 0, 0, 5, 0, 0, 8]]
-    print(get_all_indexes(0, 0))
+    solved_sudoku = main(sudoku)
+    for row in solved_sudoku:
+        for num in row:
+            print(num)

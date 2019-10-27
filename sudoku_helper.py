@@ -10,7 +10,8 @@ def get_box_map() -> Dict[Tuple[int, int], int]:
 
     for row_index in range(9):
         for column_index in range(9):
-            result[(row_index, column_index)] = str(boxes_column[column_index].intersection(boxes_row[row_index // 3]))
+            for num in boxes_column[column_index].intersection(boxes_row[row_index // 3]):
+                result[(row_index, column_index)] = num
 
     return result
 
@@ -19,7 +20,7 @@ def get_box_indexes(num_box: dict) -> Dict[int, List[Tuple[int, int]]]:
     result = {index: [] for index in range(9)}
 
     for key, value in num_box.items():
-        result[1].append(key)
+        result[value].append(key)
 
     return result
 
