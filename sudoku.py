@@ -84,7 +84,7 @@ def main(sudoku: List[List[int]]):
         if direction_forward:
             if len(unused_candidates) >= 1:
 
-                candidate = choice(cell.get_unused())
+                candidate = choice(unused_candidates)
                 cell.use(candidate)
                 exclude(sudoku_cells, candidate, row_index, column_index)
                 row_index, column_index = get_next_indexes(row_index, column_index)
@@ -95,7 +95,7 @@ def main(sudoku: List[List[int]]):
                 direction_forward = False
         else:
             if len(unused_candidates) >= 1:
-                candidate = choice(cell.get_unused())
+                candidate = choice(unused_candidates)
                 old_candidate = cell.change_used(candidate)
 
                 append(sudoku_cells, old_candidate, row_index, column_index)
@@ -105,9 +105,12 @@ def main(sudoku: List[List[int]]):
                 row_index, column_index = get_next_indexes(row_index, column_index)
             else:
                 candidate = cell.current()
-                append(sudoku_cells, candidate, row_index, column_index)
+                if isinstance(candidate, int):
+                    append(sudoku_cells, candidate, row_index, column_index)
 
                 cell.refresh_all([State.Expire, State.Used])
+
+                row_index, column_index = get_prev_indexes(row_index, column_index)
 
 
 if __name__ == '__main__':
