@@ -13,7 +13,6 @@ class Cell:
         self.candidates = {i: State.Unused for i in range(1, 10)}
         self.prev = prev
 
-    @property
     def current(self) -> int or None:
         for candidate, state in self.candidates.items():
             if state == State.Used:
