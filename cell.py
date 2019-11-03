@@ -1,4 +1,5 @@
 from enum import Enum
+from logging import debug
 
 
 class State(Enum):
@@ -45,10 +46,12 @@ class Cell:
                 self.use(candidate)
                 return old_candidate
 
-    def refresh_one(self, candidate):
-        if candidate in self.candidates.keys():
+    def refresh_one(self, candidate: int) -> bool:
+        if candidate in self.candidates.keys()  :
             if self.candidates[candidate] == State.Excluded:
                 self.candidates[candidate] = State.Unused
+                return True
+        return False
 
     def refresh_all(self, states: list):
         for candidate, state in self.candidates.items():

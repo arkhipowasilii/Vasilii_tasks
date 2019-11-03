@@ -1,8 +1,9 @@
-
 from sudoku_helper import get_box_map, get_box_indexes, get_column_indexes, get_row_indexes
 from typing import Dict, List, Tuple, Set
 from random import choice
 from cell import Cell, State
+
+import logging
 
 
 num_box = get_box_map()
@@ -19,20 +20,23 @@ def exclude(sudoku, candidate: int, row_index: int, column_index: int):
     for i_index, j_index in get_all_related_indexes(row_index, column_index):
         sudoku[i_index][j_index].exclude(candidate)
 
-
 def append(sudoku, candidate: int, row_index: int, column_index: int):
-    dependent_indexes = get_dependent_indexes(sudoku, candidate, get_all_related_indexes(row_index, column_index))
+    dependent_indexes = get_dependent_indexes(sudoku, candidate, row_index, column_index)
+    logging.debug(f"{candidate} -> ({row_index}, {column_index}) : {dependent_indexes}")
     for i_index, j_index in dependent_indexes:
-
         sudoku[i_index][j_index].refresh_one(candidate)
 
-
-def get_dependent_indexes(sudoku, candidate: int, all_related_indexes) -> Set[Tuple[int, int]]:
+def get_dependent_indexes(sudoku, candidate: int, old_row_index, old_column_index) -> Set[Tuple[int, int]]:
     result = set()
+    old_indexes = (old_row_index, old_column_index)
+    all_related_indexes = get_all_related_indexes(old_row_index, old_column_index)
 
     for row_index, column_index in all_related_indexes:
         if candidate in sudoku[row_index][column_index].candidates:
             current_indexes = get_all_related_indexes(row_index, column_index)
+
+            if old_indexes in all_related_indexes:
+                all_related_indexes.remove(old_indexes)
             for i, j in current_indexes:
                 cell = sudoku[i][j]
                 if cell.current() == candidate:
@@ -79,60 +83,7 @@ def main(sudoku: List[List[int]]):
             if num != 0:
                 row_nums[row_index].append(num)
                 column_nums[column_index].append(num)
-                box_nums[num_box[(row_index, column_index)]].append(num)
-
-                cell = sudoku_cells[row_index][column_index]
-                cell.candidates = {num: State.Used}
-
-    # O(9*9)
-    for row_index in range(9):
-        for column_index, cell in enumerate(sudoku_cells[row_index]):
-            if len(cell.candidates) > 1:
-                cell.delete_list(set(box_nums[num_box[(row_index, column_index)]] + row_nums[row_index] + column_nums[column_index]))
-
-    return solve_cell_sudoku(sudoku_cells)
-
-
-def solve_cell_sudoku(sudoku_cells):
-    is_correct = False
-    row_index = 0
-    column_index = 0
-    direction_forward = True
-
-    while not is_correct:
-        if row_index > 8:
-            return sudoku_cells
-        print(row_index, column_index)
-        cell = sudoku_cells[row_index][column_index]
-        unused_candidates = cell.get_unused()
-
-        if len(cell.candidates) == 1:
-            if direction_forward:
-                row_index, column_index = get_next_indexes(row_index, column_index)
-            else:
-                row_index, column_index = get_prev_indexes(row_index, column_index)
-            continue
-
-        if direction_forward:
-            # 1. Куда попадает исходно заполненная ячейка?
-
-            if len(unused_candidates) >= 1:
-                candidate = choice(unused_candidates)
-                cell.use(candidate)
-                exclude(sudoku_cells, candidate, row_index, column_index)
-                row_index, column_index = get_next_indexes(row_index, column_index)
-            else:
-                cell.refresh_all([State.Expire, State.Used])
-                row_index, column_index = get_prev_indexes(row_index, column_index)
-                direction_forward = False
-
-        else:
-
-            if len(unused_candidates) >= 1:
-                candidate = choice(unused_candidates)
-                old_candidate = cell.change_used(candidate)
-
-                append(sudoku_cells, old_candidate, row_index, column_index)
+                box_nums[num_box[(row_index, column_index)]].append(sudoku_cells, old_candidate, row_index, column_index)
                 exclude(sudoku_cells, candidate, row_index, column_index)
 
                 direction_forward = True
@@ -147,6 +98,7 @@ def solve_cell_sudoku(sudoku_cells):
 
 
 if __name__ == '__main__':
+    logging.setLevel(logging.DEBUG)
     sudoku = [[0, 0, 0, 0, 6, 0, 7, 0, 0],
               [0, 5, 9, 0, 0, 0, 0, 0, 0],
               [0, 1, 0, 2, 0, 0, 0, 0, 0],
